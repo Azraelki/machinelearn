@@ -2,17 +2,33 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.colors import ListedColormap
-
+'''
+book-name:      machine learn 
+book-location:  chapter-2
+content:       自适应线性神经元实现--批梯度下降
+'''
 class AdalineGD:
     def __init__(self, eta=0.01,n_iter=50,random_state=1):
+        '''
+        :param eta: 学习速率，介于0-1之间
+        :param n_iter: 迭代次数
+        :param random_state: 用于初始化权重参数的随机种子，用于复现测试结果
+        '''
         self.eta = eta
         self.n_iter = n_iter
         self.random_state = random_state
 
     def fit(self,X,y):
+        '''
+        :param X: 变量，np.array类型
+        :param y: 因变量，np.array类型
+        :return:
+        '''
+        # 初始化权重参数
         rgen = np.random.RandomState(self.random_state)
         self.w_  =  rgen.normal(loc=0.0, scale=0.01,size = 1+X.shape[1])
 
+        # 成本函数返回值列表初始化
         self.cost_ = []
 
         for i in range(self.n_iter):
@@ -29,9 +45,11 @@ class AdalineGD:
     def net_input(self, X):
         return np.dot(X, self.w_[1:])  + self.w_[0]
 
+    # 激活函数，在这里仅做占位，并没有起作用
     def activation(self,X):
         return X
 
+    # 预测函数
     def predict(self,X):
         return np.where(self.activation(self.net_input(X)) >= 0.0, 1, -1)
 

@@ -1,33 +1,54 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
+'''
+book-name:      machine learn 
+book-location:  chapter-2
+content:        感知器实现
+'''
 class Perceptron:
     def __init__(self, eta=0.01,n_iter=50,random_state=1):
+        '''
+        :param eta: 学习速率，介于0-1之间
+        :param n_iter: 迭代次数
+        :param random_state: 用于初始化权重参数的随机种子，用于复现测试结果
+        '''
         self.eta = eta
         self.n_iter = n_iter
         self.random_state = random_state
 
     def fit(self,X,y):
+        '''
+        :param X: 变量，np.array类型
+        :param y: 因变量，np.array类型
+        :return:
+        '''
+        # 初始化权重参数
         rgen = np.random.RandomState(self.random_state)
         self.w_  =  rgen.normal(loc=0.0, scale=0.01,size = 1+X.shape[1])
 
+        # 初始化错率列表
         self.errors_ = []
+        # 迭代
         for _ in range(self.n_iter):
             errors = 0
             for xi, target in zip(X,y):
+                # 根据每条数据的反馈结果更新所有的权重参数
                 update = self.eta * (target - self.predict(xi))
                 self.w_[1:] += update * xi
                 self.w_[0] += update
-                errors += int(update != 0.0)
+                errors += int(update != 0.0)# 累加每次迭代的错误次数
             self.errors_.append(errors)
         return self
 
+    # 计算权重和变量的笛卡尔积
     def net_input(self, X):
         return np.dot(X, self.w_[1:])  + self.w_[0]
 
+    # 预测函数
     def predict(self,X):
         return np.where(self.net_input(X) >= 0.0, 1, -1)
 
+# 展示100个样本的散点分布图
 def show_100_scatter(df):
     import matplotlib.pyplot as plt
     y = df.iloc[0:100, 4].values
@@ -41,6 +62,7 @@ def show_100_scatter(df):
     plt.legend(loc='upper left')
     plt.show()
 
+# 展示n_iter次迭代中每次迭代的错误率折线图
 def show_error_scatter(df):
     import matplotlib.pyplot as plt
     y = df.iloc[0:100, 4].values
@@ -55,6 +77,7 @@ def show_error_scatter(df):
     plt.ylabel("Number of updates")
     plt.show()
 
+# 展示使用感知器算法后的散点分割图
 def plot_decision_regions(X,y,classifier,resolution=0.02):
     from matplotlib.colors import ListedColormap
 

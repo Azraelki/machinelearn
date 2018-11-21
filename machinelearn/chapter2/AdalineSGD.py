@@ -2,27 +2,39 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.colors import ListedColormap
-
+'''
+book-name:      machine learn 
+book-location:  chapter-2
+content:       自适应线性神经元实现--随机梯度下降
+'''
 class AdalineSGD:
     def __init__(self, eta=0.01,n_iter=50,shuffle=True,random_state=None):
+        '''
+        :param eta: 学习速率，介于0-1之间
+        :param n_iter: 迭代次数
+        :param shuffle:是否重新排序样本
+        :param random_state: 用于初始化权重参数的随机种子，用于复现测试结果
+        '''
         self.eta = eta
         self.n_iter = n_iter
         self.shuffle = shuffle
         self.random_state = random_state
 
     def fit(self,X,y):
+        # c初始化权重
         self._initialize_weights(X.shape[1])
         self.cost_ = []
         for i in range(self.n_iter):
             if self.shuffle:
-                X,y = self._shuffle(X,y)
+                X,y = self._shuffle(X,y) # 样本重排序
             cost = []
             for xi, target in zip(X,y):
                 cost.append(self._update_weights(xi, target))
-            avg_cost = sum(cost) / len(y)
+            avg_cost = sum(cost) / len(y) # 计算平均成本函数值
             self.cost_.append(avg_cost)
         return self
 
+    # 不重置权重的情况下更新参数，用于在线学习，当有新的数据时可以在之前参数基础上更新
     def partial_fit(self, X,y):
         if not self.w_initialized:
             self._initialize_weights(X.shape[1])
@@ -33,16 +45,18 @@ class AdalineSGD:
             self._update_weights(X,y)
         return self
 
-
+    # 重排序样本
     def _shuffle(self,X,y):
         r = self.rgen.permutation(len(y))
         return X[r],y[r]
 
+    # 初始化权重
     def _initialize_weights(self,m):
         self.rgen = np.random.RandomState(self.random_state)
         self.w_ = self.rgen.normal(loc=0.0,scale=0.01,size=1+m)
         self.w_initialized = True
 
+    # 根据样本更新权重
     def _update_weights(self, xi, target):
         output = self.activation(self.net_input(xi))
         error = (target - output)
@@ -54,15 +68,17 @@ class AdalineSGD:
     def net_input(self, X):
         return np.dot(X, self.w_[1:])  + self.w_[0]
 
+    # 激活函数
     def activation(self,X):
         return X
 
+    # 预测函数
     def predict(self,X):
         return np.where(self.activation(self.net_input(X)) >= 0.0, 1, -1)
 
 
 
-
+# 标准化样本值，可以提高收敛速度和提升训练效果
 def standard_X(X,y):
     X_std = np.copy(X)
     X_std[:,0] = (X[:,0]-X[:,0].mean())/X[:,0].std()
