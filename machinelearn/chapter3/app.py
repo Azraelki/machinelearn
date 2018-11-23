@@ -414,11 +414,6 @@ def function13():
 
 
 
-
-
-
-
-
 if __name__ == '__main__':
     # 获取数据集
     iris = datasets.load_iris()
