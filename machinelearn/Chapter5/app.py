@@ -240,6 +240,207 @@ def function4():
     plt.legend(loc='lower left')
     plt.show()
 
+##########################使用核主成分分析进行非线性映射#######################################
+# 手工实现核PCA(核函数为rbf,高斯核)
+# :param gamma:高斯核函数的可优化参数
+def rbf_kernel_pca(X,gamma,n_components):
+    from scipy.spatial.distance import pdist,squareform
+    from scipy import exp
+    from scipy.linalg import eigh
+
+    # 计算样本矩阵中两两样本的欧几里得距离
+    sq_dists = pdist(X,'sqeuclidean') # 返回值为列表
+
+    # 将成对的距离转化为方阵
+    mat_sq_distts = squareform(sq_dists)
+
+    # 获取对称的核矩阵
+    K = exp(-gamma*mat_sq_distts)
+
+    # 聚集核矩阵
+    N = K.shape[0]
+    one_n = np.ones((N,N))/N
+    K = K - one_n.dot(K)-K.dot(one_n)+one_n.dot(K).dot(one_n)
+
+    # 从聚合后的核矩阵中获取特征对
+    # 使用scipy.linalg.eigh 以升序返回他们
+    eigvals,eigvecs = eigh(K)
+    eigvals,eigvecs = eigvals[::-1],eigvecs[:,::-1] # 转换为降序
+
+    # 收集前K个特征向量
+    alphas = np.column_stack((eigvecs[:,i] for i in range(n_components)))
+
+    # 收集前K个特征向量对应的特征值
+    lambdas = [eigvals[i] for i in range(n_components)]
+    return alphas,lambdas
+
+# 使用手工实现的核PCA方式降维分离半月形数据
+def function5():
+    from sklearn.datasets import make_moons
+    from sklearn.decomposition import PCA
+    from matplotlib.ticker import FormatStrFormatter
+
+    # 半月形样本散点图
+    X,y = make_moons(n_samples=100,random_state=123)
+    plt.scatter(X[y==0,0],X[y==0,1],color='red',marker='^',alpha=0.5)
+    plt.scatter(X[y==1,0],X[y==1,1],color='blue',marker='o',alpha=0.5)
+    plt.show()
+
+    # 首先使用标准的PCA方式映射样本
+    scikit_pca = PCA(n_components=2)
+    X_spca = scikit_pca.fit_transform(X)
+    fig,ax = plt.subplots(nrows=1,ncols=2,figsize=(7,3))
+    # 绘制两个主成分
+    ax[0].scatter(X_spca[y==0,0],X_spca[y==0,1],color='red',marker='^',alpha=0.5)
+    ax[0].scatter(X_spca[y==1,0],X_spca[y==1,1],color='blue',marker='o',alpha=0.5)
+
+    # 绘制一个主成分
+    ax[1].scatter(X_spca[y==0,0],np.zeros((50,1))+0.02,color='blue',marker='^',alpha=0.5)
+    ax[1].scatter(X_spca[y==1,0],np.zeros((50,1))-0.02,color='red',marker='o',alpha=0.5)
+
+    ax[0].set_xlabel('pc1')
+    ax[0].set_ylabel('pc2')
+
+    ax[1].set_ylim([-1,1])
+    ax[1].set_yticks([])
+    ax[1].set_xlabel('pc1')
+    plt.show()
+
+    # 使用核PCA映射样本并展示散点图
+    X_kpca = rbf_kernel_pca(X,gamma=15,n_components=2)
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(7, 3))
+    # 绘制两个主成分
+    ax[0].scatter(X_kpca[y == 0, 0], X_kpca[y == 0, 1], color='red', marker='^', alpha=0.5)
+    ax[0].scatter(X_kpca[y == 1, 0], X_kpca[y == 1, 1], color='blue', marker='o', alpha=0.5)
+
+    # 绘制一个主成分
+    ax[1].scatter(X_kpca[y == 0, 0], np.zeros((50, 1)) + 0.02, color='blue', marker='^', alpha=0.5)
+    ax[1].scatter(X_kpca[y == 1, 0], np.zeros((50, 1)) - 0.02, color='red', marker='o', alpha=0.5)
+
+    ax[0].set_xlabel('pc1')
+    ax[0].set_ylabel('pc2')
+
+    ax[1].set_ylim([-1, 1])
+    ax[1].set_yticks([])
+    ax[1].set_xlabel('pc1')
+
+    ax[0].xaxis.set_major_formatter(FormatStrFormatter("%0.2f"))
+    ax[1].xaxis.set_major_formatter(FormatStrFormatter("%0.2f"))
+
+    plt.show()
+
+
+# 使用手工实现的核PCA方式降维分离同心圆数据
+def function6():
+    from sklearn.datasets import make_circles
+    from sklearn.decomposition import PCA
+    from matplotlib.ticker import FormatStrFormatter
+
+    # 同心圆样本散点图
+    X, y = make_circles(n_samples=1000, random_state=123,noise=0.1,factor=0.2)
+    plt.scatter(X[y == 0, 0], X[y == 0, 1], color='red', marker='^', alpha=0.5)
+    plt.scatter(X[y == 1, 0], X[y == 1, 1], color='blue', marker='o', alpha=0.5)
+    plt.show()
+
+ # 首先使用标准的PCA方式映射样本
+    scikit_pca = PCA(n_components=2)
+    X_spca = scikit_pca.fit_transform(X)
+    fig,ax = plt.subplots(nrows=1,ncols=2,figsize=(7,3))
+    # 绘制两个主成分
+    ax[0].scatter(X_spca[y==0,0],X_spca[y==0,1],color='red',marker='^',alpha=0.5)
+    ax[0].scatter(X_spca[y==1,0],X_spca[y==1,1],color='blue',marker='o',alpha=0.5)
+
+    # 绘制一个主成分
+    ax[1].scatter(X_spca[y==0,0],np.zeros((500,1))+0.02,color='blue',marker='^',alpha=0.5)
+    ax[1].scatter(X_spca[y==1,0],np.zeros((500,1))-0.02,color='red',marker='o',alpha=0.5)
+
+    ax[0].set_xlabel('pc1')
+    ax[0].set_ylabel('pc2')
+
+    ax[1].set_ylim([-1,1])
+    ax[1].set_yticks([])
+    ax[1].set_xlabel('pc1')
+    plt.show()
+
+
+ # 使用核PCA映射样本并展示散点图
+    X_kpca = rbf_kernel_pca(X,gamma=15,n_components=2)
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(7, 3))
+    # 绘制两个主成分
+    ax[0].scatter(X_kpca[y == 0, 0], X_kpca[y == 0, 1], color='red', marker='^', alpha=0.5)
+    ax[0].scatter(X_kpca[y == 1, 0], X_kpca[y == 1, 1], color='blue', marker='o', alpha=0.5)
+
+    # 绘制一个主成分
+    ax[1].scatter(X_kpca[y == 0, 0], np.zeros((500, 1)) + 0.02, color='blue', marker='^', alpha=0.5)
+    ax[1].scatter(X_kpca[y == 1, 0], np.zeros((500, 1)) - 0.02, color='red', marker='o', alpha=0.5)
+
+    ax[0].set_xlabel('pc1')
+    ax[0].set_ylabel('pc2')
+
+    ax[1].set_ylim([-1, 1])
+    ax[1].set_yticks([])
+    ax[1].set_xlabel('pc1')
+
+    ax[0].xaxis.set_major_formatter(FormatStrFormatter("%0.2f"))
+    ax[1].xaxis.set_major_formatter(FormatStrFormatter("%0.2f"))
+
+    plt.show()
+
+
+# 映射新的数据集(除训练数据集外)
+
+def project_x(x_new,X,gamma,alphas,lambdas):
+    '''
+    :param x_new: 新样本
+    :param X: 训练数据集
+    :param gamma: 可优化参数
+    :param alphas: 特征向量列表
+    :param lamdas: 特征值列表
+    :return: 新值的映射
+    '''
+    pair_dist = np.array([np.sum((x_new-row)**2) for row in X])
+    k = np.exp(-gamma*pair_dist)
+    return k.dot(alphas/lambdas)
+def function7():
+    from sklearn.datasets import make_moons
+
+    X,y = make_moons(n_samples=100,random_state=123)
+    alphas,lambdas = rbf_kernel_pca(X,gamma=15,n_components=1)
+
+    # 假定一个新的数据点
+    x_new = X[25]
+    print(alphas[25]) # 原始映射值
+    x_reporj = project_x(x_new=x_new,X=X,gamma=15,alphas=alphas,lambdas=lambdas)
+    print(x_reporj) # 新映射值,此值应和原始映射值相同
+
+    # 将映射后的新值显示在散点图上(可视化第一主成分)
+    plt.scatter(alphas[y == 0, 0], np.zeros((50)),
+    color = 'red', marker = '^', alpha = 0.5)
+    plt.scatter(alphas[y == 1, 0], np.zeros((50)),
+    color = 'blue', marker = 'o', alpha = 0.5)
+    plt.scatter(alphas[25], 0, color='black',
+    label = 'original projection of point X[25]',
+    marker = '^', s = 100)
+    plt.scatter(x_reporj, 0, color='green',
+    label = 'remapped point X[25]',
+    marker = 'x', s = 500)
+    plt.legend(scatterpoints=1)
+    plt.show()
+
+# 使用sklearn中提供的核PCA实现
+def function8():
+    from sklearn.decomposition import KernelPCA
+    from sklearn.datasets import make_moons
+
+    X,y = make_moons(n_samples=100,random_state=123)
+    scikit_kpca = KernelPCA(n_components=2,kernel='rbf',gamma=15)
+    X_skernpca = scikit_kpca.fit_transform(X)
+
+    plt.scatter(X_skernpca[y==0,0],X_skernpca[y==0,1],color='red',marker='^',alpha=0.5)
+    plt.scatter(X_skernpca[y==1,0],X_skernpca[y==1,1],color='blue',marker='o',alpha=0.5)
+    plt.xlabel('pc1')
+    plt.ylabel('pc2')
+    plt.show()
 
 
 
@@ -254,7 +455,11 @@ def function4():
 if __name__ == '__main__':
     # function1()
     # function2()
-    function4()
+    # function4()
+    # function5()
+    # function6()
+    # function7()
+    function8()
 
 
 
