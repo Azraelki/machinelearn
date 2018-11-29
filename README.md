@@ -1,2 +1,2 @@
 # machinelearn
-machine learining
+python machine learining---------代码练习
