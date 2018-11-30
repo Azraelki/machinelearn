@@ -333,6 +333,100 @@ def function9():
     #                     scoring=scorer,# 此处使用
     #                     cv=10)
 
+# 绘制ROC曲线（受试者工作特征曲线）基于假正率和真正率等性能指标绘制
+def function10():
+    from sklearn.metrics import roc_curve,auc # auc为roc线下区域
+    from scipy import interp # 一维线性插值函数
+    from sklearn.model_selection import StratifiedKFold
+
+    df = pd.read_csv("https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/wdbc.data",
+                     header=None)
+
+    X = df.loc[:, 2:].values
+    y = df.loc[:, 1].values
+    le = LabelEncoder()
+    y = le.fit_transform(y)
+    print(le.classes_)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
+
+    pipe_lr = make_pipeline(StandardScaler(),
+                            PCA(n_components=2),
+                            LogisticRegression(penalty='l2',random_state=1,C=100.0))
+
+    X_train2 = X_train[:,[4,14]]
+    cv = list(StratifiedKFold(n_splits=3,random_state=1).split(X_train,y_train))
+
+    fig = plt.figure(figsize=(7,5))
+
+    mean_tpr = 0.0
+    mean_fpr = np.linspace(0,1,100)
+    all_tpr = []
+
+    for i,(train,test) in enumerate(cv):# 绘制三个分块的roc曲线
+        probas = pipe_lr.fit(X_train2[train],y_train[train]).predict_proba(X_train2[test])
+        fpr,tpr,thresholds = roc_curve(y_train[test],probas[:,1],pos_label=1)
+        mean_tpr += interp(mean_fpr,fpr,tpr)
+        mean_tpr[0] = 0.0 # 设置（0,0）坐标值为恒=0
+        roc_auc = auc(fpr,tpr) # 根据假正率和真正率计算线下区域
+        plt.plot(fpr,tpr,label='roc fold %d (area=%0.2f)' % (i+1,roc_auc))
+
+    plt.plot([0,1],[0,1],linestyle='--', # 绘制随机猜测对应的roc曲线，线下区域为0.5
+             color=(0.6,0.6,0.6),
+             label='random guessing')
+
+    mean_tpr /= len(cv) # 求真正率均值
+    mean_tpr[-1] = 1.0 #设置（1,1）坐标值恒=1
+    mean_auc = auc(mean_fpr,mean_tpr) # 计算auc均值
+
+    plt.plot(mean_fpr,mean_tpr,'k--',
+             label='mean roc (area=%0.2d)' % mean_auc,
+             lw=2) # 线宽
+    plt.plot([0,0,1],[0,1,1],linestyle=':',color='black',label='perfect performance')
+
+    plt.xlim([-0.05,1.05])
+    plt.ylim([-0.05,1.05])
+    plt.xlabel("true positive rate")
+    plt.ylabel("false positive rate")
+    plt.legend(loc='lower right')
+    plt.show()
+
+    # 可以直接通过roc_auc_score函数计算roc auc 得分
+    from sklearn.metrics import roc_auc_score
+    y_pred = pipe_lr.predict(X_test[:,[4,14]])
+    print("roc auc: %.3f" %roc_auc_score(y_true=y_test,y_score=y_pred))
+
+    # 最后，多类别分类的评价标准：宏均值和微均值，常用的有加权宏均值标准
+
+# 数据集类别不均衡时的处理
+def function11():
+    from sklearn.utils import resample
+
+    df = pd.read_csv("https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/wdbc.data",
+                     header=None)
+
+    X = df.loc[:, 2:].values
+    y = df.loc[:, 1].values
+
+    lbe = LabelEncoder()
+    y = lbe.fit_transform(y)
+
+    # 创建一个不均衡的数据集
+    X_imb = np.vstack((X[y==0],X[y==1][:40]))
+    y_imb = np.hstack((y[y==0],y[y==1][:40]))
+
+    # 通过resample函数把少的类型样本的数量增加到和另一种一样多
+    X_upsampled,y_upsampled = resample(X_imb[y_imb==1],
+                                       y_imb[y_imb==1],
+                                       replace=True,
+                                       n_samples=X_imb[y_imb==0].shape[0])
+
+    print(X_upsampled[y_upsampled==1].shape)
+    print(X_imb[y_imb == 0].shape)
+
+
+
+
+
 if __name__ == '__main__':
     # df = pd.read_csv("https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/wdbc.data",
     #                  header=None)
@@ -352,4 +446,6 @@ if __name__ == '__main__':
     # function6()
     # function7()
     # function8()
-    function9()
+    # function9()
+    # function10()
+    function11()
