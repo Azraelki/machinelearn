@@ -11,6 +11,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
+from sklearn.metrics import accuracy_score
 from MajorityVowteClassifier import MajoritVoteClassifier
 
 # 获取数据并且将y值量化
@@ -46,6 +47,7 @@ def function1():
     plt.grid(alpha=0.5)
     plt.show()
 
+#################集成分类器---简单投票分类器##################################
 # 使用k-折交叉验证评估各评估器的性能
 def function2():
     clf1 = LogisticRegression(penalty='l2',C=0.001,random_state=1)
@@ -143,6 +145,61 @@ def function3():
     print("accuracy : %.2f" % grid.best_score_)
 
 
+#################集成分类器---bagging分类器##################################
+def function4():
+    from sklearn.ensemble import BaggingClassifier
+    df_wine = pd.read_csv('https://archive.ics.uci.edu/ml/'
+                          'machine-learning-databases/wine/wine.data',
+                          header=None)
+    df_wine.columns = ['Class label', 'Alcohol',
+                       'Malic acid', 'Ash',
+                       'Alcalinity of ash',
+                       'Magnesium', 'Total phenols',
+                       'Flavanoids', 'Nonflavanoid phenols',
+                       'Proanthocyanins',
+                       'Color intensity', 'Hue',
+                       'OD280/OD315 of diluted wines',
+                       'Proline']
+    # drop 1 class
+    df_wine = df_wine[df_wine['Class label'] != 1]
+    y = df_wine['Class label'].values
+    X = df_wine[['Alcohol', 'OD280/OD315 of diluted wines']].values
+    le = LabelEncoder()
+    y = le.fit_transform(y)
+    X_train, X_test, y_train, y_test = \
+    train_test_split(X, y,
+                    test_size = 0.2,
+                    random_state = 1,
+                    stratify = y)
+
+    tree = DecisionTreeClassifier(criterion='entropy',
+                                  random_state=1,
+                                  max_depth=1)
+    bag = BaggingClassifier(base_estimator=tree,
+                            n_estimators=1000,
+                            max_samples=1.0,
+                            max_features=1.0,
+                            bootstrap=True,
+                            bootstrap_features=False,
+                            n_jobs=1,
+                            random_state=1)
+
+    # 使用单颗决策树
+    tree = tree.fit(X_train,y_train)
+    y_train_pred = tree.predict(X_train)
+    y_test_pred = tree.predict(X_test)
+
+    tree_train = accuracy_score(y_train, y_train_pred)
+    tree_test = accuracy_score(y_test, y_test_pred)
+    print('Decision tree train/test accuracies %.3f/%.3f'% (tree_train, tree_test))
+
+    bag = bag.fit(X_train, y_train)
+    y_train_pred = bag.predict(X_train)
+    y_test_pred = bag.predict(X_test)
+    bag_train = accuracy_score(y_train, y_train_pred)
+    bag_test = accuracy_score(y_test, y_test_pred)
+    print('Bagging train/test accuracies %.3f/%.3f'% (bag_train, bag_test))
+
 
 
 
@@ -154,4 +211,5 @@ def function3():
 if __name__ == "__main__":
     # function1()
     # function2()
-    function3()
+    # function3()
+    function4()
