@@ -190,6 +190,7 @@ def function4():
     X_test,y_test = get_minibatch(doc_stream,size=5000)
     X_test = vect.transform(X_test)
     print("accuracy: %.3f" % clf.score(X_test,y_test))
+    return clf
 
 
 # 以上的文档分解没有考虑上句子的结构和语法，另一种文档分解的算法为LDA（狄利克雷分类）
