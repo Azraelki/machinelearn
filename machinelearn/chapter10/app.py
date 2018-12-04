@@ -170,8 +170,60 @@ def function6():
     from sklearn.linear_model import ElasticNet
     elanet = ElasticNet(alpha=1.0,l1_ratio=0.5) # 弹性网络，ridge和lasso的折中，l1_ratio为L1和L2系数的比率
 
+
+# 多项式回归--引入多次项拟合数据
+def function7():
+    from sklearn.linear_model import LinearRegression
+    from sklearn.preprocessing import PolynomialFeatures
+    from sklearn.metrics import r2_score
+    X = df[['LSTAT']].values
+    y = df['MEDV'].values
+
+    regr = LinearRegression()
+
+    # 引入多项式
+    quadratic = PolynomialFeatures(degree=2)
+    cubic = PolynomialFeatures(degree=3)
+    X_quad = quadratic.fit_transform(X)
+    X_cubic = cubic.fit_transform(X)
+
+    # 拟合各个多项式模型
+    X_fit = np.arange(X.min(),X.max(),1)[:,np.newaxis]
+
+    regr.fit(X,y)
+    y_lin_fit = regr.predict(X_fit)
+    linear_r2 = r2_score(y,regr.predict(X))
+
+    regr = regr.fit(X_quad,y)
+    y_quad_fit = regr.predict(quadratic.fit_transform(X_fit))
+    quadratic_r2 = r2_score(y,regr.predict(X_quad))
+
+    regr.fit(X_cubic,y)
+    y_cubic_fit = regr.predict(cubic.fit_transform(X_fit))
+    cubic_r2 = r2_score(y,regr.predict(X_cubic))
+
+    # 画出结果
+    plt.scatter(X,y,label='training points',color='lightgray')
+
+    plt.plot(X_fit,y_lin_fit,label='linear(d=1), $R^2=%.2f'%linear_r2,
+             color='blue',lw=2,linestyle=':')
+
+    plt.plot(X_fit, y_quad_fit, label='linear(d=2), $R^2=%.2f' % quadratic_r2,
+             color='red', lw=2, linestyle='-')
+
+    plt.plot(X_fit, y_cubic_fit, label='linear(d=3), $R^2=%.2f' % cubic_r2,
+             color='green', lw=2, linestyle='--')
+
+    plt.xlabel('% lower status of the population [LSTAT]')
+    plt.ylabel('price in $1000s [MEDV]')
+    plt.legend(loc='upper right')
+    plt.show()
+
+
+
 if __name__ == '__main__':
     # function1()
     # function2()
     # function3()
-    function5()
+    # function5()
+    function7()
