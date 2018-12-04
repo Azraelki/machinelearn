@@ -122,8 +122,56 @@ def function4():
     plt.legend(loc='upper left')
     plt.show()
 
+
+# 使用不同方式对模型进行评估
+def function5():
+    from sklearn.model_selection import train_test_split
+    from sklearn.linear_model import LinearRegression
+    X = df.iloc[:,:-1].values
+    y = df['MEDV'].values
+    X_train,X_test,y_train,y_test = train_test_split(X,y,test_size=0.3,random_state=0)
+    slr = LinearRegression()
+    slr.fit(X,y)
+    y_train_pred = slr.predict(X_train)
+    y_test_pred = slr.predict(X_test)
+
+    # 评估模型性能：绘制残差图，残差=预测值-实际值
+    plt.scatter(y_train_pred,y_train_pred-y_train,c='steelblue',
+                marker='o',edgecolor='white',label='Training data')
+    plt.scatter(y_test_pred, y_test_pred - y_test, c='limegreen',
+                marker='s', edgecolor='white', label='Test data')
+
+    plt.xlabel("predicted values")
+    plt.ylabel("Residuals")
+    plt.legend(loc='upper left')
+    plt.hlines(y=0,xmin=0,xmax=50,color='black',lw=2)
+    plt.xlim([-10,50])
+    plt.show()
+
+    # 评估模型性能：计算均方误差(MSE,既SSE的均值)，均方误差=sum（(预测值-实际值)^2）/n
+    # 由输出结果得出：模型过于拟合训练数据集
+    from sklearn.metrics import mean_squared_error
+    print('MSE train:%.3f, test:%.3f'%(mean_squared_error(y_train,y_train_pred),
+                                       mean_squared_error(y_test,y_test_pred)))
+
+    # 评估模型性能：决定系数（R^2），R^2 = 1-(SSE/SST)，SST = sum(（真实值-均值）^2)
+    from sklearn.metrics import r2_score
+    print('R^2 train: %.3f, test: %.3f' %(r2_score(y_train,y_train_pred),
+                                          r2_score(y_test,y_test_pred)))
+
+# 回归中的正则化
+def function6():
+    from sklearn.linear_model import Ridge
+    ridge = Ridge(alpha=1.0) # ridge（岭回归），alpha为正则化强度，L2
+
+    from sklearn.linear_model import Lasso
+    lasso = Lasso(alpha=1.0) # lasso（最小绝对收缩及算子选择）,L1
+
+    from sklearn.linear_model import ElasticNet
+    elanet = ElasticNet(alpha=1.0,l1_ratio=0.5) # 弹性网络，ridge和lasso的折中，l1_ratio为L1和L2系数的比率
+
 if __name__ == '__main__':
     # function1()
     # function2()
     # function3()
-    function4()
+    function5()
