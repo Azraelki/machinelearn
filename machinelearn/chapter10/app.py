@@ -171,7 +171,7 @@ def function6():
     elanet = ElasticNet(alpha=1.0,l1_ratio=0.5) # 弹性网络，ridge和lasso的折中，l1_ratio为L1和L2系数的比率
 
 
-# 多项式回归--引入多次项拟合数据
+# 多项式回归--引入多次项拟合数据（拟合非线性关系时）
 def function7():
     from sklearn.linear_model import LinearRegression
     from sklearn.preprocessing import PolynomialFeatures
@@ -220,10 +220,64 @@ def function7():
     plt.show()
 
 
+# 使用sklearn的决策树回归对非线性关系进行拟合
+def function8():
+    from sklearn.tree import DecisionTreeRegressor
+    X = df[['LSTAT']].values
+    y = df['MEDV'].values
+
+    tree = DecisionTreeRegressor(max_depth=3)
+    tree.fit(X,y)
+    sort_idx = X.flatten().argsort() # 绘制拟合线时按照LSTAT从小到大的顺序绘制
+    lin_regplot(X[sort_idx],y[sort_idx],tree)
+    # lin_regplot(X,y,tree)
+    plt.xlabel("% lower status of population [LSTAT]")
+    plt.ylabel("price in $1000s [MEDV]")
+    plt.show()
+
+# 使用sklearn随机森林回归对数据集进行拟合，随机森林相对决策树鲁棒性更好
+def function8():
+    from sklearn.model_selection import train_test_split
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.metrics import mean_squared_error
+    from sklearn.metrics import r2_score
+    X = df.iloc[:,:-1].values
+    y = df['MEDV'].values
+
+    X_train,X_test,y_train,y_test = train_test_split(X,y,test_size=0.4,random_state=1)
+
+    forest = RandomForestRegressor(n_estimators=1000,criterion='mse',
+                                   random_state=1,n_jobs=-1)
+
+    forest.fit(X_train,y_train)
+    y_train_pred = forest.predict(X_train)
+    y_test_pred = forest.predict(X_test)
+
+    print("MSE train : %.3f, test: %.3f"%(mean_squared_error(y_train,y_train_pred),
+                                          mean_squared_error(y_test,y_test_pred)))
+
+    print("R^2 train : %.3f, test: %.3f" % (r2_score(y_train, y_train_pred),
+                                            r2_score(y_test,y_test_pred)))
+
+    # 绘制残差图
+    plt.scatter(y_train_pred,y_train_pred-y_train,c='steelblue',
+                edgecolor='white',marker='o',s=35,alpha=0.9,label='training data')
+    plt.scatter(y_test_pred,y_test_pred-y_test,c='limegreen',
+                edgecolor='white',marker='s',s=35,alpha=0.9,label='test data')
+
+    plt.xlabel('predicted values')
+    plt.ylabel("residuals")
+    plt.legend(loc='upper left')
+    plt.hlines(y=0,xmax=50,xmin=-10,lw=2,colors='black')
+    plt.xlim([-10,50])
+    plt.show()
+
+
 
 if __name__ == '__main__':
     # function1()
     # function2()
     # function3()
     # function5()
-    function7()
+    # function7()
+    function8()
