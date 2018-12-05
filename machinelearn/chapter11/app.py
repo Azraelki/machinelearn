@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from sklearn.datasets import make_blobs
 from sklearn.cluster import KMeans
 
+###########################k-means聚类#####################################
 # 生成并绘制随机散点图,之后使用sklearn的k-mean模型聚类数据
 def function1():
     X,y = make_blobs(n_samples=150,
@@ -170,6 +171,55 @@ def function4():
     plt.ylabel("cluster")
     plt.show()
 
+###########################层次聚类聚类#####################################
+# 计算距离的四种方式 单链接（两个簇样本点距离最近的），全连接（两个簇样本点最远的），平均连接（两个簇平均距离最小），ward连接(SSE增量最小的簇)
+def function5():
+    # 生成随机样本
+    np.random.seed(123)
+    variables = ['X','Y','Z']
+    labels = ['ID_0','ID_1','ID_2','ID_3','ID_4']
+    X = np.random.random_sample([5,3])*10
+    df = pd.DataFrame(X,columns=variables,index=labels)
+    print(df)
+
+    # 计算距离矩阵
+    from scipy.spatial.distance import pdist,squareform
+    row_dist = pd.DataFrame(squareform(pdist(df,metric='euclidean')),
+                            columns=labels,index=labels)
+    print(row_dist)
+
+    # 计算关联矩阵
+    from scipy.cluster .hierarchy import linkage
+    row_clusters = linkage(df.values,
+                           method='complete',# 计算距离的方式，此处为全连接，
+                           metric='euclidean')
+    print(pd.DataFrame(row_clusters,
+                       columns=['row label 1','row label 2','distance','number of items in clust'],
+                       index=['cluster %d' % (i+1) for i in range(row_clusters.shape[0])]))
+
+    # 使用树状图对聚类结果进行可视化
+    from scipy.cluster.hierarchy import dendrogram
+
+    row_dendr = dendrogram(row_clusters,labels=labels)
+    plt.tight_layout()
+    plt.ylabel("euclidean distance")
+    plt.show()
+
+# 使用sklearn提供的基于凝聚的聚类
+def function6():
+    from sklearn.cluster import AgglomerativeClustering
+    # 生成随机样本
+    np.random.seed(123)
+    variables = ['X', 'Y', 'Z']
+    labels = ['ID_0', 'ID_1', 'ID_2', 'ID_3', 'ID_4']
+    X = np.random.random_sample([5, 3]) * 10
+    df = pd.DataFrame(X, columns=variables, index=labels)
+
+    ac = AgglomerativeClustering(n_clusters=2,# 期待返回的簇数
+                                 affinity='euclidean',
+                                 linkage='complete')
+    labels = ac.fit_predict(X)
+    print("cluster labels: %s" % labels) # 此处返回的结果和自己画出的树状图分类是一致的
 
 
 
@@ -177,4 +227,6 @@ if __name__ == '__main__':
     # function1()
     # function2()
     # function3()
-    function4()
+    # function4()
+    # function5()
+    function6()
