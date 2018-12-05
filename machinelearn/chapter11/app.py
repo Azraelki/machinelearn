@@ -221,6 +221,33 @@ def function6():
     labels = ac.fit_predict(X)
     print("cluster labels: %s" % labels) # 此处返回的结果和自己画出的树状图分类是一致的
 
+#####################DBSCAN(基于密度空间的聚类)#############################
+#
+def function7():
+    from sklearn.datasets import make_moons
+    # 生成半月形数据集
+    X,y = make_moons(n_samples=200,
+                     noise=0.05,
+                     random_state=0)
+    plt.scatter(X[:,0],X[:,1])
+    plt.show()
+
+    # 使用sklearn基于密度的聚类
+    from sklearn.cluster import DBSCAN
+    db = DBSCAN(eps=0.2, # 核心点半径
+                min_samples=5,# 核心点范围内的样本数
+                metric='euclidean')# 距离公式
+
+    y_db = db.fit_predict(X)
+    plt.scatter(X[y_db==0,0],X[y_db==0,1],
+                c='lightblue',edgecolor='black',
+                marker='o',s=40,label='cluster 1')
+    plt.scatter(X[y_db == 1, 0], X[y_db == 1, 1],
+                c='red', edgecolor='black',
+                marker='x', s=40, label='cluster 2')
+
+    plt.legend()
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -229,4 +256,5 @@ if __name__ == '__main__':
     # function3()
     # function4()
     # function5()
-    function6()
+    # function6()
+    function7()
