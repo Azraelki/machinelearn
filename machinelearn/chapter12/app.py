@@ -88,8 +88,27 @@ def function2():
     plt.ylabel("cost")
     plt.show()
 
+# 使用自己实现的神经网络训练样本---加入梯度检测
+def function3():
+    X_train, y_train = load_mnist("../../../machinelearndata/chapter12/", 'train')
+    X_test, y_test = load_mnist("../../../machinelearndata/chapter12/", 't10k')
+
+    nn = NeuralNetMLP(n_hidden=10,
+                      l2=0.01,
+                      epochs=200,
+                      eta=0.0005,
+                      minibatch_size=1,
+                      shuffle=True,
+                      seed=1,
+                      check=False)
+
+    nn.fit(X_train=X_train[:10000], y_train=y_train[:10000],
+           X_valid=X_train[10000:15000], y_valid=y_train[10000:15000])
+
+
 
 if __name__ == '__main__':
     # function1()
-    function2()
+    # function2()
+    function3()
 

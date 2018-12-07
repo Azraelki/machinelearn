@@ -6,7 +6,7 @@ class NeuralNetMLP:
     前馈神经网络/多层感知器 分类器
     '''
     def __init__(self,n_hidden=30,l2=0.,epochs=100,eta=0.001,shuffle=True,
-                 minibatch_size=1,seed=None):
+                 minibatch_size=1,seed=None,check=False):
         '''
         :param n_hidden: 隐藏单元的个数
         :param l2: 正则参数
@@ -15,6 +15,7 @@ class NeuralNetMLP:
         :param shuffle: 每次迭代是否重置数据集
         :param minibatch_size: 每次mini批处理的样本数量
         :param seed: 随机初始化参数和重置样本集顺序时的种子数，方便重现结果
+        :param check: 是否开启梯度检测
         attributes
         -----------
         eval_ : dict
@@ -27,6 +28,7 @@ class NeuralNetMLP:
         self.eta = eta
         self.shuffle = shuffle
         self.minibatch_size = minibatch_size
+        self.check = check
 
     def _onehot(self,y,n_classes):
         '''
@@ -48,7 +50,7 @@ class NeuralNetMLP:
         '''
         return 1.0/(1.0+np.exp(-np.clip(z,-250,250)))
 
-    def _forward(self,X):
+    def _forward(self,X,w_h,w_out):
         '''
         计算前向传播
         :param X:
@@ -57,7 +59,7 @@ class NeuralNetMLP:
         # step 1: 隐藏层的净输入值
         # [n_samples,n_features] dor [n_features,n_hidden]
         # -> [n_samples,n_hidden]
-        z_h = np.dot(X,self.w_h) + self.b_h
+        z_h = np.dot(X,w_h) + self.b_h
 
         # step 2: 隐层激活
         a_h = self._sigmoid(z_h)
@@ -65,21 +67,21 @@ class NeuralNetMLP:
         # step 3: 输出层净输入值
         # [n_samples,n_hidden] dot [n_hidden,n_classlabels]
         # -> [n_samples,n_classlabels]
-        z_out = np.dot(a_h,self.w_out) + self.b_out
+        z_out = np.dot(a_h,w_out) + self.b_out
 
         # step 4: 激活输出层
         a_out = self._sigmoid(z_out)
 
         return z_h,a_h,z_out,a_out
 
-    def _compute_cost(self,y_enc,output):
+    def _compute_cost(self,y_enc,output,w_h,w_out):
         '''
         计算成本函数
         :param y_enc: one-hot形式的类标签
         :param output: 前向传播返回的a_out
         :return: 正则后的成本值
         '''
-        L2_TERM = (self.l2*(np.sum(self.w_h**2.)+np.sum(self.w_out**2.))) # 正则项
+        L2_TERM = (self.l2*(np.sum(w_h**2.)+np.sum(w_out**2.))) # 正则项
         term1 = -y_enc * (np.log(output))
         term2 = (1 - y_enc) * np.log(1-output)
         cost = np.sum(term1-term2) + L2_TERM
@@ -91,7 +93,7 @@ class NeuralNetMLP:
         :param X:
         :return:
         '''
-        z_h,a_h,z_out,a_out = self._forward(X)
+        z_h,a_h,z_out,a_out = self._forward(X,self.w_h,self.w_out)
         y_pred = np.argmax(z_out,axis=1)
         return y_pred
 
@@ -132,7 +134,7 @@ class NeuralNetMLP:
                 batch_idx  = indices[start_idx:start_idx+self.minibatch_size] # 获取minibatch下标
 
                 # 前向传播
-                z_h,a_h,z_out,a_out = self._forward(X_train[batch_idx])
+                z_h,a_h,z_out,a_out = self._forward(X_train[batch_idx],self.w_h,self.w_out)
 
                 # 后向传播
                 # [n_samples,n_classlabels]
@@ -155,6 +157,21 @@ class NeuralNetMLP:
                 grad_w_out = np.dot(a_h.T,sigma_out)
                 grad_b_out = np.sum(sigma_out,axis=0)
 
+                if self.check:
+                    # 检验梯度-begin
+                    grad_diff = self._gradient_checking(X_train[batch_idx],
+                                                        y_train_enc[batch_idx],
+                                                        self.w_h,self.w_out,
+                                                        1e-5,grad_w_h,grad_w_out)
+                    if grad_diff <= 1e-7:
+                        print("OK: %s"%grad_diff)
+                    elif grad_diff <= 1e-4:
+                        print("Warning: %s"%grad_diff)
+                    else:
+                        print("Problem: %s"%grad_diff)
+                    # 检验梯度-end
+
+
                 # 正则化 并且更新隐藏层和输出层权重
                 delta_w_h = (grad_w_h + self.l2*self.w_h)
                 delta_b_h = grad_b_h # 偏置单元无需正则
@@ -168,9 +185,9 @@ class NeuralNetMLP:
 
             ## 评估
             # 每次迭代之后进行评估
-            z_h,a_h,z_out,a_out = self._forward(X_train)
+            z_h,a_h,z_out,a_out = self._forward(X_train,self.w_h,self.w_out)
 
-            cost = self._compute_cost(y_enc=y_train_enc,output=a_out)
+            cost = self._compute_cost(y_enc=y_train_enc,output=a_out,w_h=self.w_h,w_out=self.w_out)
 
             y_train_pred = self.predict(X_train)
             y_valid_pred = self.predict(X_valid)
@@ -188,6 +205,73 @@ class NeuralNetMLP:
             self.eval_['valid_acc'].append(valid_acc)
 
         return self
+
+    def _gradient_checking(self,X,y_enc,w_h,w_out,epsilon,grad_h,grad_out):
+        '''
+        梯度检验（计算成本较大，只在debug少量数据时检验梯度计算是否正确）
+        :param X:
+        :param y_enc:
+        :param w_h:
+        :param w_out:
+        :param epsilon:
+        :param grad_h:
+        :param grad_out:
+        :return: relative_error: 数值梯度（数值逼近的梯度）和解析梯度（反向传播计算的梯度）的相对误差
+        '''
+        # 计算w_h的数值梯度
+        num_grad1 = np.zeros(np.shape(w_h))
+        epsilon_ary1 = np.zeros(np.shape(w_h))
+
+        for i in range(w_h.shape[0]): # 计算每个权重的数值偏导
+            for j in range(w_h.shape[1]):
+                epsilon_ary1[i,j] = epsilon
+                z_h,a_h,z_out,a_out = self._forward(X,w_h-epsilon_ary1,w_out)
+                cost1 = self._compute_cost(y_enc,a_out,w_h-epsilon_ary1,w_out)
+
+                z_h, a_h, z_out, a_out = self._forward(X, w_h + epsilon_ary1, w_out)
+                cost2 = self._compute_cost(y_enc, a_out, w_h + epsilon_ary1, w_out)
+
+                num_grad1[i,j] = (cost2-cost1)/(2*epsilon)
+                epsilon_ary1[i,j] = 0
+
+        # 计算w_out的数值梯度
+        num_grad2 = np.zeros(np.shape(w_out))
+        epsilon_ary2 = np.zeros(np.shape(w_out))
+
+        for i in range(w_out.shape[0]):  # 计算每个权重的数值偏导
+            for j in range(w_out.shape[1]):
+                epsilon_ary2[i, j] = epsilon
+                z_h, a_h, z_out, a_out = self._forward(X, w_h, w_out - epsilon_ary2)
+                cost1 = self._compute_cost(y_enc, a_out, w_h, w_out - epsilon_ary2)
+
+                z_h, a_h, z_out, a_out = self._forward(X, w_h, w_out + epsilon_ary2)
+                cost2 = self._compute_cost(y_enc, a_out, w_h, w_out + epsilon_ary2)
+
+                num_grad2[i, j] = (cost2 - cost1) / (2 * epsilon)
+                epsilon_ary2[i, j] = 0
+
+        num_grad = np.hstack((num_grad1.flatten(),num_grad2.flatten())) #数值梯度 化成一维，方便计算
+
+        grad = np.hstack((grad_h.flatten(),grad_out.flatten())) # 解析梯度
+
+        # 归一化处理，防止因尺度变化造成的波动
+        norm1 = np.linalg.norm(num_grad-grad)
+        norm2 = np.linalg.norm(num_grad)
+        norm3 = np.linalg.norm(grad)
+        relative_error = norm1/(norm2+norm3)
+        return relative_error
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
