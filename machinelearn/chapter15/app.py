@@ -337,11 +337,14 @@ def function4():
 
     g = tf.Graph()
     with g.as_default():
-        saver = tf.train.Saver()
+        tf.set_random_seed(123)
+        # build_cnn()
+        # saver = tf.train.Saver()
+        saver = tf.train.import_meta_graph('./model/cnn-model.ckpt-20.meta')
     with tf.Session(graph=g) as sess:
         load(saver,sess,epoch=20,path='./model/')
-        preds = predict(sess,X_test_centered,return_proba=False)
-        print("test accuracy: %.3f%%"%(100*np.sum(preds==y_test)/len(y_test)))
+        preds = predict(sess,X_test_centered[:1000],return_proba=False)
+        print("test accuracy: %.3f%%"%(100*np.sum(preds==y_test[:1000])/len(y_test[:1000])))
 
 
 
