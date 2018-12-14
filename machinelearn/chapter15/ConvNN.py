@@ -189,12 +189,15 @@ if __name__ == '__main__':
     X_valid_centered = (X_valid - mean_vals) / std_val
     X_test_centered = (X_test - mean_vals) / std_val
 
-    cnn = ConvNN(random_seed=123)
-    cnn.train(training_set=(X_train_centered,y_train),initialize=True)
-    cnn.save(epoch=20)
-
-    del cnn
+    # cnn = ConvNN(random_seed=123)
+    # cnn.train(training_set=(X_train_centered,y_train),initialize=True)
+    # cnn.save(epoch=20)
+    #
+    # del cnn
     cnn2 = ConvNN(random_seed=123)
     cnn2.load(epoch=20,path='./tflayers-model/')
     print(cnn2.predict(X_test_centered[:10,:]))
+
+    preds = cnn2.predict(X_test_centered[:1000,:])
+    print("test accuracy:%.2f%%"%(100*np.sum(y_test[:1000]==preds)/len(y_test[:1000])))
 
