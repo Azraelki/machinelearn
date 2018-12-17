@@ -150,11 +150,11 @@ def function5():
     rnn = CharRnn(num_classes=len(chars),batch_size=batch_size,
                   char2int=char2int,int2char=int2char,chars=chars)
 
-    rnn.train(train_x,train_y,num_epochs=100,ckpt_dir='./model-100/')
+    # rnn.train(train_x,train_y,num_epochs=100,ckpt_dir='./model-100/')
 
     del rnn
     np.random.seed(123)
-    rnn = CharRnn(len(chars),sampling=True,int2char=int2char,char2int=char2int,chars=chars)
+    rnn = CharRnn(num_classes=len(chars),sampling=True,char2int=char2int,int2char=int2char,chars=chars)
     print(rnn.sample(ckpt_dir='./model-100/',output_length=500))
 
 

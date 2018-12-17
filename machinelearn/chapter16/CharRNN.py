@@ -30,11 +30,15 @@ class CharRnn:
         self.learning_rate = learning_rate
         self.keep_prob = keep_prob
         self.grad_clip = grad_clip
+        self.sampling = sampling
+        self.char2int= char2int
+        self.int2char = int2char
+        self.chars = chars
 
         self.g = tf.Graph()
         with self.g.as_default():
             tf.set_random_seed(123)
-            self.build(sampling=False)
+            self.build(sampling=self.sampling)
             self.saver = tf.train.Saver()
             self.init_op = tf.global_variables_initializer()
 
@@ -128,7 +132,7 @@ class CharRnn:
 
     def sample(self,output_length,ckpt_dir,starter_seq='The '):
         observed_seq = [ch for ch in starter_seq]
-        with tf.Session(graph=g) as sess:
+        with tf.Session(graph=self.g) as sess:
             self.saver.restore(sess,tf.train.latest_checkpoint(ckpt_dir))
             # 1. 使用starter_seq序列运行模型
             new_state = sess.run(self.initial_state)
@@ -158,7 +162,7 @@ class CharRnn:
         p = np.squeeze(probas)
         p[np.argsort(p)[:-top_n]] = 0.0
         p = p/np.sum(p)
-        ch_id = np.random.choice(char_size,1,p=p)
+        ch_id = np.random.choice(char_size,1,p=p)[0]
         return ch_id
 
 
