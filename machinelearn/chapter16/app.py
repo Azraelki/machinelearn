@@ -6,6 +6,7 @@ import re
 import pandas as pd
 from string import punctuation # 标点字符列表
 from collections import Counter
+from SentimentRNN import SentimentRNN
 
 # 定义一个生成器--生成mini-barches
 def create_batch_generator(x,y=None,batch_size=64):
@@ -19,6 +20,7 @@ def create_batch_generator(x,y=None,batch_size=64):
         else:
             yield  x[ii:ii+batch_size]
 
+#############################RNN-1 电影情感分析#########################################
 # 导入数据
 def function1():
     # 数据.csv文件从第八章中的代码中可以生成
@@ -69,6 +71,52 @@ def function3():
     # embed_x = tf.nn.embedding_lookup(embedding,tf_x)
     pass
 
+# 测试创建的模型--情感分析
+def function4():
+    df = pd.read_csv('movie_data.csv', encoding='utf-8')
+    sequences = pd.read_csv('sequences.csv', dtype=int)
+    sequences = sequences.iloc[:,1:]
+    X_train = sequences.iloc[:25000, :]
+    y_train = df.loc[:25000, 'sentiment']
+    X_test = sequences.iloc[25000:, :]
+    y_test = df.loc[25000:, 'sentiment']
+
+    n_words = np.max(np.array(sequences.iloc[:,:]).flatten())
+    rnn = SentimentRNN(n_words=n_words,
+                       seq_len=200,
+                       embed_size=256,
+                       lstm_size=128,
+                       num_layers=1,
+                       batch_size=100,
+                       learning_rate=0.001)
+
+    rnn.train(X_train,y_train,num_epochs=40)
+
+    preds = rnn.predict(X_test)
+    y_true = y_test[:len(preds)]
+    print(" test acc : %.3f"%(np.sum(preds==y_true)/len(y_true)))
+
+#############################RNN-2 字符预测#########################################
+def reshape_data(sequence,batch_size,num_steps):
+    tot_batch_length = batch_size * num_steps # 每个批次包含的字符长度
+    num_batches = int(len(sequence)/tot_batch_length) # 批次数量
+
+    if num_batches * tot_batch_length + 1 > len(sequence):
+        num_batches = num_batches - 1 # 保证每批次的字符数量是满的
+    # 截断
+
+# 准备数据，一篇戏剧
+def function5():
+    # 读取数据
+    with open('pg2265.txt','r',encoding='utf-8') as f:
+        text = f.read()
+    text = text[15858:]
+    chars = set(text)
+    char2int = {ch:i for i,ch in enumerate(chars)}
+    int2char = dict(enumerate(chars))
+    text_ints = np.array([char2int[ch] for ch in text],dtype=np.int32) # 将text转化为int
+
+
 
 
 
@@ -80,4 +128,6 @@ def function3():
 
 if __name__ == '__main__':
     # function1()
-    function2()
+    # function2()
+    # function4()
+    function5()
