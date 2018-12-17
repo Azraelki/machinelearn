@@ -7,6 +7,7 @@ import pandas as pd
 from string import punctuation # 标点字符列表
 from collections import Counter
 from SentimentRNN import SentimentRNN
+from CharRNN import CharRnn
 
 # 定义一个生成器--生成mini-barches
 def create_batch_generator(x,y=None,batch_size=64):
@@ -90,20 +91,45 @@ def function4():
                        batch_size=100,
                        learning_rate=0.001)
 
-    rnn.train(X_train,y_train,num_epochs=40)
-
+    # rnn.train(X_train,y_train,num_epochs=40)
     preds = rnn.predict(X_test)
     y_true = y_test[:len(preds)]
     print(" test acc : %.3f"%(np.sum(preds==y_true)/len(y_true)))
 
 #############################RNN-2 字符预测#########################################
 def reshape_data(sequence,batch_size,num_steps):
+    ''' 构造输入数据的形状
+    :param sequence: 转化为int列表的数据集列表
+    :param batch_size: 批次数
+    :param num_steps: 步长，每步所包含的字符的数量
+    :return:
+    '''
     tot_batch_length = batch_size * num_steps # 每个批次包含的字符长度
     num_batches = int(len(sequence)/tot_batch_length) # 批次数量
 
     if num_batches * tot_batch_length + 1 > len(sequence):
         num_batches = num_batches - 1 # 保证每批次的字符数量是满的
-    # 截断
+    # 截断不满一批次的数据
+    x = sequence[0:num_batches*tot_batch_length]
+    y = sequence[1:num_batches*tot_batch_length+1]
+
+    # 分拆为批次数据
+    x_batch_splits = np.split(x,batch_size)
+    y_batch_splits = np.split(y,batch_size)
+
+    # 把批次数据堆到一起
+    # batch_size * tot_batch_length
+    x = np.stack(x_batch_splits)
+    y = np.stack(y_batch_splits)
+
+    return x,y
+
+def create_batch_generator(data_x,data_y,num_steps): # 小批次生成器，每次弹出num_steps长度的数据
+    batch_size , tot_batch_length = data_x.shape
+    num_batches = int(tot_batch_length/num_steps)
+    for b in range(num_batches):
+        yield (data_x[:,b*num_steps:(b+1)*num_steps],
+               data_y[:,b*num_steps:(b+1)*num_steps])
 
 # 准备数据，一篇戏剧
 def function5():
@@ -115,6 +141,22 @@ def function5():
     char2int = {ch:i for i,ch in enumerate(chars)}
     int2char = dict(enumerate(chars))
     text_ints = np.array([char2int[ch] for ch in text],dtype=np.int32) # 将text转化为int
+
+    # 训练模型
+    batch_size = 64
+    num_steps = 100
+    train_x,train_y = reshape_data(text_ints,batch_size,num_steps)
+
+    rnn = CharRnn(num_classes=len(chars),batch_size=batch_size,
+                  char2int=char2int,int2char=int2char,chars=chars)
+
+    rnn.train(train_x,train_y,num_epochs=100,ckpt_dir='./model-100/')
+
+    del rnn
+    np.random.seed(123)
+    rnn = CharRnn(len(chars),sampling=True,int2char=int2char,char2int=char2int,chars=chars)
+    print(rnn.sample(ckpt_dir='./model-100/',output_length=500))
+
 
 
 
