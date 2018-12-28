@@ -384,9 +384,111 @@ def train_model():
 
 ##################################以上完成了第一次的提交，两个模型的得分都在0.7703#####################################################
 
+#################################################以下为第二次分析####################################################################
+# 交叉验证
+def across_validation(estimitor=None,title="estimitor",X=None,y=None,cv=10):
+    scores = cross_val_score(estimitor, X, y, cv=10)
+    print("%s  cross_val_score: min:%.4f  max:%.4f  mean:%.4f"%(title,np.min(scores),np.max(scores),scores.mean()))
+# 分析数据-2   特征工程
+def analize_data_2():
+    # 获取数据集
+    train_data_origin = pd.read_csv("../../../machinelearndata/kaggle/titanic/train.csv", encoding="utf-8")
+    test_data_origin = pd.read_csv("../../../machinelearndata/kaggle/titanic/test.csv", encoding="utf-8")
+
+    # 处理-1
+    train_data = train_data_origin.copy()
+    test_data = test_data_origin.copy()
+    train_data['Age'] = train_data['Age'].fillna(train_data.loc[:, 'Age'].mean())
+    test_data['Age'] = test_data['Age'].fillna(train_data.loc[:, 'Age'].mean())
+    train_data['Embarked'] = train_data['Embarked'].fillna('S')
+    test_data['Embarked'] = test_data['Embarked'].fillna('S')
+    train_data['Fare'] = train_data['Fare'].fillna(train_data.loc[:, 'Fare'].mean())
+    test_data['Fare'] = test_data['Fare'].fillna(train_data.loc[:, 'Fare'].mean())
+    sex_map = {'male': 1, 'female': 0}
+    train_data['Sex'] = train_data['Sex'].map(sex_map)
+    test_data['Sex'] = test_data['Sex'].map(sex_map)
+    embarked_map = {'S': 1, 'Q': 2,'C':3}
+    train_data['Embarked'] = train_data['Embarked'].map(embarked_map)
+    test_data['Embarked'] = test_data['Embarked'].map(embarked_map)
+    train_data['Cabin'] = train_data['Cabin'].fillna(0)
+    train_data.Cabin[train_data['Cabin'] != 0] = 1
+    test_data['Cabin'] = test_data['Cabin'].fillna(0)
+    test_data.Cabin[test_data['Cabin'] != 0] = 1
 
 
+    logist = LogisticRegression(penalty='l2', C=1.0, random_state=123,solver='lbfgs',max_iter=500)
+    gbdt = GradientBoostingClassifier(learning_rate=0.01, n_estimators=800, subsample=0.7, random_state=123)
+    print("###################处理----1######################")
+    # across_validation(estimitor=logist,title='logistic',X=train_data[['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare', 'Cabin', 'Embarked']].values,y=train_data['Survived'].values)
+    # across_validation(estimitor=gbdt,title='gbdt',X=train_data[['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare', 'Cabin', 'Embarked']].values,y=train_data['Survived'].values)
+    # logistic  cross_val_score: min:0.7640  max:0.8222  mean:0.7957
+    # gbdt  cross_val_score: min:0.7753  max:0.9101  mean:0.8329
 
+    # 处理-2
+    # 尝试将Embarked除掉（经第一次的模型结果分析，Embarked字段重要性很低，并且出现了S严重拉低生存率的现象）
+    logist = LogisticRegression(penalty='l2', C=1.0, random_state=123,solver='lbfgs',max_iter=500)
+    gbdt = GradientBoostingClassifier(learning_rate=0.01, n_estimators=800, subsample=0.7, random_state=123)
+    print("###################处理----2######################")
+    # across_validation(estimitor=logist, title='logistic',
+    #                   X=train_data[['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare', 'Cabin']].values,
+    #                   y=train_data['Survived'].values)
+    # across_validation(estimitor=gbdt, title='gbdt',
+    #                   X=train_data[['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare', 'Cabin',]].values,
+    #                   y=train_data['Survived'].values)
+    # logistic  cross_val_score: min:0.7640  max:0.8315  mean:0.7946
+    # gbdt  cross_val_score: min:0.7753  max:0.8989  mean:0.8362
+    # 与处理-1相比略微有提升
+
+    # 处理-3
+    # 修改age的空值填充方式，可以从Name的称呼上进行分组划分估计,名字中包含的Mr,Mrs,Miss,Dr和Master五个类型
+    train_data['Age'] = train_data_origin['Age']
+    mean_mr = train_data[train_data['Name'].str.contains('Mr\.')]['Age'].dropna().mean()
+    mean_mrs = train_data[train_data['Name'].str.contains('Mrs\.')]['Age'].dropna().mean()
+    mean_miss = train_data[train_data['Name'].str.contains('Miss\.')]['Age'].dropna().mean()
+    mean_master = train_data[train_data['Name'].str.contains('Master\.')]['Age'].dropna().mean()
+    mean_dr = train_data[train_data['Name'].str.contains('Dr\.')]['Age'].dropna().mean()
+    train_data.loc[train_data['Name'].str.contains('Mr\.'),'Age'] = mean_mr
+    train_data.loc[train_data['Name'].str.contains('Mrs\.'), 'Age'] = mean_mrs
+    train_data.loc[train_data['Name'].str.contains('Miss\.'), 'Age'] = mean_miss
+    train_data.loc[train_data['Name'].str.contains('Master\.'), 'Age']= mean_master
+    train_data.loc[train_data['Name'].str.contains('Dr\.'), 'Age']= mean_master
+    # 归一化年龄
+    std_age = StandardScaler()
+    std_age.fit(train_data['Age'].values.reshape(-1,1))
+    train_data['Age'] = std_age.transform(train_data['Age'].values.reshape(-1,1))
+    # 归一化费用
+    std_fare = StandardScaler()
+    std_age.fit(train_data['Fare'].values.reshape(-1, 1))
+    train_data['Fare'] = std_age.transform(train_data['Fare'].values.reshape(-1, 1))
+
+    logist = LogisticRegression(penalty='l2', C=1.0, random_state=123, solver='lbfgs', max_iter=500)
+    gbdt = GradientBoostingClassifier(learning_rate=0.01, n_estimators=800, subsample=0.7, random_state=123)
+    print("###################处理----3######################")
+    across_validation(estimitor=logist, title='logistic',
+                      X=train_data[['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare', 'Cabin']].values,
+                      y=train_data['Survived'].values)
+    across_validation(estimitor=gbdt, title='gbdt',
+                      X=train_data[['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare', 'Cabin', ]].values,
+                      y=train_data['Survived'].values)
+    # logistic  cross_val_score: min:0.7528  max:0.8315  mean:0.7957
+    # gbdt  cross_val_score:  min:0.7640  max:0.8876  mean:0.8384
+    # 与处理-2相比略微有提升
+
+
+    # ## Fare字段挖掘分析                      count    mean     std    min     25%     50%     75%
+    # print(train_data['Fare'].describe()) #     891    32.20   49.69    0      7.91   14.45     31
+    # print(test_data['Fare'].describe())  #     417    35.62   55.90    0      7.89   14.45     31.5   (缺失一个)
+    # # 对Fare分段处理,简单观察原始数据后分组  (1,0=<Fare<7.925) (2,7.925=<Fare<26.25) (3,26.25=<Fare)
+    # df = train_data[train_data['Sex']==1]
+    # df.sort_values(by=['Fare'],inplace=True,na_position='first')
+    # # 图-8 对Fare挖掘绘制图
+
+    pass
+
+def deal_data_2(train_data):
+    # 获取数据集
+    train_data_origin = pd.read_csv("../../../machinelearndata/kaggle/titanic/train.csv", encoding="utf-8")
+    test_data_origin = pd.read_csv("../../../machinelearndata/kaggle/titanic/test.csv", encoding="utf-8")
 
 
 
@@ -395,4 +497,6 @@ if __name__ == '__main__':
     # analize_data_1()
     # deal_data_1()
     # train_model_1()
-    train_model()
+    # train_model()
+    # feature_analyzie()
+    analize_data_2()
