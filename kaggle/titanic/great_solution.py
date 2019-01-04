@@ -15,7 +15,10 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.pylab as plb
 import seaborn as sns
+import graphviz
 # from pandas.tools.plotting import scatter_matrix
+
+import time
 
 # 设置图形展示风格
 mpl.style.use('ggplot')
@@ -286,7 +289,7 @@ def graph_show():
     correlation_heatmap(data1)
 
 # 绘制关联关系热度图
-def correlation_heatmap(df):
+def correlation_heatmap(df,is_show=True):
     _,ax = plt.subplots(figsize=(14,12))
     colormap = sns.diverging_palette(220,10,as_cmap=True)
     _ = sns.heatmap(
@@ -303,79 +306,347 @@ def correlation_heatmap(df):
     if is_show:
         plt.show()
 
-# 模型数据
-MLA = [
-    # 集合方法
-    ensemble.AdaBoostClassifier(),
-    ensemble.BaggingClassifier(),
-    ensemble.ExtraTreesClassifier(),
-    ensemble.GradientBoostingClassifier(),
-    ensemble.RandomForestClassifier(),
+# 使用不同的算法训练模型
+def train_models():
+    # 模型数据
+    MLA = [
+        # 集合方法
+        ensemble.AdaBoostClassifier(),
+        ensemble.BaggingClassifier(),
+        ensemble.ExtraTreesClassifier(),
+        ensemble.GradientBoostingClassifier(),
+        ensemble.RandomForestClassifier(),
 
-    # 高斯处理
-    gaussian_process.GaussianProcessClassifier(),
+        # 高斯处理
+        gaussian_process.GaussianProcessClassifier(),
 
-    # GLM
-    linear_model.LogisticRegressionCV(),
-    linear_model.PassiveAggressiveClassifier(),
-    linear_model.RidgeClassifierCV(),
-    linear_model.SGDClassifier(),
-    linear_model.Perceptron(),
+        # GLM
+        linear_model.LogisticRegressionCV(),
+        linear_model.PassiveAggressiveClassifier(),
+        linear_model.RidgeClassifierCV(),
+        linear_model.SGDClassifier(),
+        linear_model.Perceptron(),
 
-    # 朴素贝叶斯
-    neighbors.KNeighborsClassifier(),
+        # 朴素贝叶斯
+        neighbors.KNeighborsClassifier(),
 
-    # svm
-    svm.SVC(probability=True),
-    svm.NuSVC(probability=True),
-    svm.LinearSVC(),
+        # svm
+        svm.SVC(probability=True),
+        svm.NuSVC(probability=True),
+        svm.LinearSVC(),
 
-    # tree
-    tree.DecisionTreeClassifier(),
-    tree.ExtraTreeClassifier(),
+        # tree
+        tree.DecisionTreeClassifier(),
+        tree.ExtraTreeClassifier(),
 
-    # 判别分析
-    discriminant_analysis.LinearDiscriminantAnalysis(),
-    discriminant_analysis.QuadraticDiscriminantAnalysis(),
+        # 判别分析
+        discriminant_analysis.LinearDiscriminantAnalysis(),
+        discriminant_analysis.QuadraticDiscriminantAnalysis(),
 
-    # xgboost
-    XGBClassifier()
-]
+        # xgboost
+        XGBClassifier()
+    ]
 
-# 划分训练集对象
-cv_split = model_selection.ShuffleSplit(n_splits=10,test_size=0.3,train_size=0.6,random_state=0)
-# 创建一张表格比较 MLA 的度量
-MLA_columns = ['MLA Name', 'MLA Parameters','MLA Train Accuracy Mean', 'MLA Test Accuracy Mean', 'MLA Test Accuracy 3*STD' ,'MLA Time']
-MLA_compare = pd.DataFrame(columns=MLA_columns)
+    # 划分训练集对象
+    cv_split = model_selection.ShuffleSplit(n_splits=10,test_size=0.3,train_size=0.6,random_state=0)
+    # 创建一张表格比较 MLA 的度量
+    MLA_columns = ['MLA Name', 'MLA Parameters','MLA Train Accuracy Mean', 'MLA Test Accuracy Mean', 'MLA Test Accuracy 3*STD' ,'MLA Time']
+    MLA_compare = pd.DataFrame(columns=MLA_columns)
 
-# 创建表，比较MLA的预测结果和真实值
-MLA_predict = data1[Target]
+    # 创建表，比较MLA的预测结果和真实值
+    MLA_predict = data1[Target]
 
-# 遍历 MLA 并保存性能到表格
-row_index = 0
-for alg in MLA:
-    # 设置名字和参数
-    MLA_name = alg.__class__.__name__
-    MLA_compare.loc[row_index,'MLA Name'] = MLA_name
-    MLA_compare.loc[row_index,'MLA Parameters'] = str(alg.get_params())
+    # 遍历 MLA 并保存性能到表格
+    row_index = 0
+    for alg in MLA:
+        # 设置名字和参数
+        MLA_name = alg.__class__.__name__
+        MLA_compare.loc[row_index,'MLA Name'] = MLA_name
+        MLA_compare.loc[row_index,'MLA Parameters'] = str(alg.get_params())
 
-    # 使用交叉验证评估模型
-    cv_results = model_selection.cross_validate(alg,data1[data1_x_bin],data1[Target],cv=cv_split)
+        # 使用交叉验证评估模型
+        cv_results = model_selection.cross_validate(alg,data1[data1_x_bin],data1[Target],cv=cv_split)
 
-    MLA_compare.loc[row_index,'MLA Time'] = cv_results['fit_time'].mean()
-    MLA_compare.loc[row_index, 'MLA Train Accuracy Mean'] = cv_results['train_score'].mean()
-    MLA_compare.loc[row_index, 'MLA Test Accuracy Mean'] = cv_results['test_score'].mean()
+        MLA_compare.loc[row_index,'MLA Time'] = cv_results['fit_time'].mean()
+        MLA_compare.loc[row_index, 'MLA Train Accuracy Mean'] = cv_results['train_score'].mean()
+        MLA_compare.loc[row_index, 'MLA Test Accuracy Mean'] = cv_results['test_score'].mean()
 
-    # 测试评分三倍标准差
-    MLA_compare.loc[row_index, 'MLA Test Accuracy 3*STD'] = cv_results['test_score'].std() * 3
+        # 测试评分三倍标准差
+        MLA_compare.loc[row_index, 'MLA Test Accuracy 3*STD'] = cv_results['test_score'].std() * 3
 
-    # 保存MLA 预测
-    alg.fit(data1[data1_x_bin],data1[Target])
-    MLA_predict[MLA_name] = alg.predict(data1[data1_x_bin])
+        # 保存MLA 预测
+        alg.fit(data1[data1_x_bin],data1[Target])
+        MLA_predict[MLA_name] = alg.predict(data1[data1_x_bin])
 
-    row_index += 1
+        row_index += 1
 
-# 打印排序好的表格
-MLA_compare.sort_values(by=['MLA Test Accuracy Mean'],ascending=False,inplace=True)
-a = MLA_compare
-pass
+    # 打印排序好的表格
+    MLA_compare.sort_values(by=['MLA Test Accuracy Mean'],ascending=False,inplace=True)
+
+    # 使用柱状图展示表格
+    sns.barplot(x='MLA Test Accuracy Mean',y='MLA Name',data=MLA_compare,color='m')
+    plt.title('machine learning algorithm accuracy score\n')
+    plt.xlabel('accuracy score(%)')
+    plt.ylabel('algorithm')
+    plt.show()
+    correlation_heatmap(MLA_predict)
+
+# 基于一个模型进行调参
+def tune_model():
+    # 划分训练集对象
+    cv_split = model_selection.ShuffleSplit(n_splits=10, test_size=0.3, train_size=0.6, random_state=0)
+
+    # 基础模型
+    dtree = tree.DecisionTreeClassifier(random_state=0)
+    base_results = model_selection.cross_validate(dtree,data1[data1_x_bin],data1[Target])
+    dtree.fit(data1[data1_x_bin],data1[Target])
+    print('BEFORE DT Parameters: ', dtree.get_params())
+    print("BEFORE DT Training w/bin score mean: {:.2f}".format(base_results['train_score'].mean() * 100))
+    print("BEFORE DT Test w/bin score mean: {:.2f}".format(base_results['test_score'].mean() * 100))
+    print("BEFORE DT Test w/bin score 3*std: +/- {:.2f}".format(base_results['test_score'].std() * 100 * 3))
+    print('-' * 10)
+
+    # 通过网格搜索调参
+    grid_param = {
+        'criterion':['gini','entropy'],
+        'max_depth':[2,4,6,8,10,None],
+        'random_state':[0]
+    }
+    tune_model = model_selection.GridSearchCV(tree.DecisionTreeClassifier(),
+                                              param_grid=grid_param,
+                                              scoring='roc_auc',cv=cv_split)
+
+    tune_model.fit(data1[data1_x_bin],data1[Target])
+    print('AFTER DT Parameters: ', tune_model.best_params_)
+    print("AFTER DT Training w/bin score mean: {:.2f}".format(
+        tune_model.cv_results_['mean_train_score'][tune_model.best_index_] * 100))
+    print("AFTER DT Test w/bin score mean: {:.2f}".format(
+        tune_model.cv_results_['mean_test_score'][tune_model.best_index_] * 100))
+    print("AFTER DT Test w/bin score 3*std: +/- {:.2f}".format(
+        tune_model.cv_results_['std_test_score'][tune_model.best_index_] * 100 * 3))
+    print('-' * 10)
+
+    # 训练模型-基于特征选择
+    print('BEFORE DT RFE Training Shape Old: ', data1[data1_x_bin].shape)
+    print('BEFORE DT RFE Training Columns Old: ', data1[data1_x_bin].columns.values)
+
+    print("BEFORE DT RFE Training w/bin score mean: {:.2f}".format(base_results['train_score'].mean() * 100))
+    print("BEFORE DT RFE Test w/bin score mean: {:.2f}".format(base_results['test_score'].mean() * 100))
+    print("BEFORE DT RFE Test w/bin score 3*std: +/- {:.2f}".format(base_results['test_score'].std() * 100 * 3))
+    print('-' * 10)
+    ## 特征选择
+    dtree_rfe = feature_selection.RFECV(dtree,step=1,scoring='accuracy',cv=cv_split)
+    dtree_rfe.fit(data1[data1_x_bin],data1[Target])
+    # 训练模型
+    X_rfe = data1[data1_x_bin].columns.values[dtree_rfe.get_support()]
+    rfe_results = model_selection.cross_validate(dtree,data1[X_rfe],data1[Target],
+                                                 cv=cv_split)
+    print('AFTER DT RFE Training Shape New: ', data1[X_rfe].shape)
+    print('AFTER DT RFE Training Columns New: ', X_rfe)
+
+    print("AFTER DT RFE Training w/bin score mean: {:.2f}".format(rfe_results['train_score'].mean() * 100))
+    print("AFTER DT RFE Test w/bin score mean: {:.2f}".format(rfe_results['test_score'].mean() * 100))
+    print("AFTER DT RFE Test w/bin score 3*std: +/- {:.2f}".format(rfe_results['test_score'].std() * 100 * 3))
+    print('-' * 10)
+
+    rfe_tune_model = model_selection.GridSearchCV(tree.DecisionTreeClassifier(), param_grid=grid_param,
+                                                  scoring='roc_auc', cv=cv_split)
+    rfe_tune_model.fit(data1[X_rfe], data1[Target])
+    print('AFTER DT RFE Tuned Parameters: ', rfe_tune_model.best_params_)
+    print("AFTER DT RFE Tuned Training w/bin score mean: {:.2f}".format(
+        rfe_tune_model.cv_results_['mean_train_score'][tune_model.best_index_] * 100))
+    print("AFTER DT RFE Tuned Test w/bin score mean: {:.2f}".format(
+        rfe_tune_model.cv_results_['mean_test_score'][tune_model.best_index_] * 100))
+    print("AFTER DT RFE Tuned Test w/bin score 3*std: +/- {:.2f}".format(
+        rfe_tune_model.cv_results_['std_test_score'][tune_model.best_index_] * 100 * 3))
+    print('-' * 10)
+
+    # 图形化树
+    dot_data = tree.export_graphviz(dtree,out_file=None,feature_names=data1_x_bin,
+                                    class_names=True,filled=True,rounded=True)
+    graph = graphviz.Source(dot_data)
+    graph.render("tree")
+
+# 集成多个算法
+def validate_implement():
+    # 查看多个算法的关联关系热度图
+    # train_models()
+    cv_split = model_selection.ShuffleSplit(n_splits=10, test_size=0.3, train_size=0.6, random_state=0)
+    # 根据热度图把关联关系为1的模型去掉，把剩余的构造为一个投票器
+    vote_est = [
+        # 集合方法
+        ('ada',ensemble.AdaBoostClassifier()),
+        ('bc',ensemble.BaggingClassifier()),
+        ('etc',ensemble.ExtraTreesClassifier()),
+        ('gbc',ensemble.GradientBoostingClassifier()),
+        ('rfc',ensemble.RandomForestClassifier()),
+
+        # 高斯方法
+        ('gpc',gaussian_process.GaussianProcessClassifier()),
+
+        # GLM
+        ('lr',linear_model.LogisticRegressionCV()),
+
+        # 朴素贝叶斯
+        ('bnb',naive_bayes.BernoulliNB()),
+        ('gnb',naive_bayes.GaussianNB()),
+
+        # 最近邻
+        ('knn',neighbors.KNeighborsClassifier()),
+
+        # svm
+        ('svc',svm.SVC(probability=True)),
+
+        # xgboost
+        ('xgb',XGBClassifier())
+    ]
+    # 硬投票/多数决定
+    vote_hard = ensemble.VotingClassifier(estimators=vote_est,voting='hard')
+    vote_hard_cv = model_selection.cross_validate(vote_hard,data1[data1_x_bin],data1[Target],
+                                                  cv=cv_split)
+    vote_hard.fit(data1[data1_x_bin],data1[Target])
+    print("Hard Voting Training w/bin score mean: {:.2f}".format(vote_hard_cv['train_score'].mean() * 100))
+    print("Hard Voting Test w/bin score mean: {:.2f}".format(vote_hard_cv['test_score'].mean() * 100))
+    print("Hard Voting Test w/bin score 3*std: +/- {:.2f}".format(vote_hard_cv['test_score'].std() * 100 * 3))
+    print('-' * 10)
+
+    # 软投票/权重概率
+    vote_soft = ensemble.VotingClassifier(estimators=vote_est,voting='soft')
+    vote_soft_cv = model_selection.cross_validate(vote_soft,data1[data1_x_bin],data1[Target],
+                                                  cv=cv_split)
+    vote_soft.fit(data1[data1_x_bin],data1[Target])
+    print("Soft Voting Training w/bin score mean: {:.2f}".format(vote_soft_cv['train_score'].mean() * 100))
+    print("Soft Voting Test w/bin score mean: {:.2f}".format(vote_soft_cv['test_score'].mean() * 100))
+    print("Soft Voting Test w/bin score 3*std: +/- {:.2f}".format(vote_soft_cv['test_score'].std() * 100 * 3))
+    print('-' * 10)
+
+    # 使用网格搜索调参
+    grid_n_estimator = [10, 50, 100, 300]
+    grid_ratio = [.1, .25, .5, .75, 1.0]
+    grid_learn = [.01, .03, .05, .1, .25]
+    grid_max_depth = [2, 4, 6, 8, 10, None]
+    grid_min_samples = [5, 10, .03, .05, .10]
+    grid_criterion = ['gini', 'entropy']
+    grid_bool = [True, False]
+    grid_seed = [0]
+
+    grid_param = [
+        [{
+            # AdaBoostClassifier - http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.AdaBoostClassifier.html
+            'n_estimators': grid_n_estimator,  # default=50
+            'learning_rate': grid_learn,  # default=1
+            # 'algorithm': ['SAMME', 'SAMME.R'], #default=’SAMME.R
+            'random_state': grid_seed
+        }],
+
+        [{
+            # BaggingClassifier - http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.BaggingClassifier.html#sklearn.ensemble.BaggingClassifier
+            'n_estimators': grid_n_estimator,  # default=10
+            'max_samples': grid_ratio,  # default=1.0
+            'random_state': grid_seed
+        }],
+
+        [{
+            # ExtraTreesClassifier - http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.ExtraTreesClassifier.html#sklearn.ensemble.ExtraTreesClassifier
+            'n_estimators': grid_n_estimator,  # default=10
+            'criterion': grid_criterion,  # default=”gini”
+            'max_depth': grid_max_depth,  # default=None
+            'random_state': grid_seed
+        }],
+
+        [{
+            # GradientBoostingClassifier - http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingClassifier.html#sklearn.ensemble.GradientBoostingClassifier
+            # 'loss': ['deviance', 'exponential'], #default=’deviance’
+            'learning_rate': [.05],
+        # default=0.1 -- 12/31/17 set to reduce runtime -- The best parameter for GradientBoostingClassifier is {'learning_rate': 0.05, 'max_depth': 2, 'n_estimators': 300, 'random_state': 0} with a runtime of 264.45 seconds.
+            'n_estimators': [300],
+        # default=100 -- 12/31/17 set to reduce runtime -- The best parameter for GradientBoostingClassifier is {'learning_rate': 0.05, 'max_depth': 2, 'n_estimators': 300, 'random_state': 0} with a runtime of 264.45 seconds.
+            # 'criterion': ['friedman_mse', 'mse', 'mae'], #default=”friedman_mse”
+            'max_depth': grid_max_depth,  # default=3
+            'random_state': grid_seed
+        }],
+
+        [{
+            # RandomForestClassifier - http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html#sklearn.ensemble.RandomForestClassifier
+            'n_estimators': grid_n_estimator,  # default=10
+            'criterion': grid_criterion,  # default=”gini”
+            'max_depth': grid_max_depth,  # default=None
+            'oob_score': [True],
+        # default=False -- 12/31/17 set to reduce runtime -- The best parameter for RandomForestClassifier is {'criterion': 'entropy', 'max_depth': 6, 'n_estimators': 100, 'oob_score': True, 'random_state': 0} with a runtime of 146.35 seconds.
+            'random_state': grid_seed
+        }],
+
+        [{
+            # GaussianProcessClassifier
+            'max_iter_predict': grid_n_estimator,  # default: 100
+            'random_state': grid_seed
+        }],
+
+        [{
+            # LogisticRegressionCV - http://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegressionCV.html#sklearn.linear_model.LogisticRegressionCV
+            'fit_intercept': grid_bool,  # default: True
+            # 'penalty': ['l1','l2'],
+            'solver': ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'],  # default: lbfgs
+            'random_state': grid_seed
+        }],
+
+        [{
+            # BernoulliNB - http://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.BernoulliNB.html#sklearn.naive_bayes.BernoulliNB
+            'alpha': grid_ratio,  # default: 1.0
+        }],
+
+        # GaussianNB -
+        [{}],
+
+        [{
+            # KNeighborsClassifier - http://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html#sklearn.neighbors.KNeighborsClassifier
+            'n_neighbors': [1, 2, 3, 4, 5, 6, 7],  # default: 5
+            'weights': ['uniform', 'distance'],  # default = ‘uniform’
+            'algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute']
+        }],
+
+        [{
+            # SVC - http://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html#sklearn.svm.SVC
+            # http://blog.hackerearth.com/simple-tutorial-svm-parameter-tuning-python-r
+            # 'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
+            'C': [1, 2, 3, 4, 5],  # default=1.0
+            'gamma': grid_ratio,  # edfault: auto
+            'decision_function_shape': ['ovo', 'ovr'],  # default:ovr
+            'probability': [True],
+            'random_state': grid_seed
+        }],
+
+        [{
+            # XGBClassifier - http://xgboost.readthedocs.io/en/latest/parameter.html
+            'learning_rate': grid_learn,  # default: .3
+            'max_depth': [1, 2, 4, 6, 8, 10],  # default 2
+            'n_estimators': grid_n_estimator,
+            'seed': grid_seed
+        }]
+    ]
+
+    start_total = time.perf_counter()
+    for clf,param in zip(vote_est,grid_param):
+        start = time.perf_counter()
+        best_search = model_selection.GridSearchCV(estimator=clf[1],param_grid=param,
+                                                   cv=cv_split,scoring='roc_auc')
+        best_search.fit(data1[data1_x_bin],data1[Target])
+        run = time.perf_counter()-start
+
+        best_param = best_search.best_params_
+        print('the best parameter for {} is {} with a runtime of{:.2f} seconds'.format(
+            clf[1].__class__.__name__,best_param,run))
+        clf[1].set_params(**best_param)
+
+    run_total = time.perf_counter() - start_total
+    print('Total optimization time was {:.2f} minutes.'.format(run_total / 60))
+
+    print('-' * 10)
+
+    # submit
+    data_val['Survived'] = vote_hard.predict(data_val[data1_x_bin])
+    submit = data_val[['PassengerId','Survived']]
+    submit.to_csv("./submit.csv", index=False)
+
+
+validate_implement()
