@@ -115,7 +115,7 @@ class CNN:
                 feed = {
                     'tf_x:0':batch_x,
                     'tf_y:0':batch_y,
-                    'is_train:0':False
+                    'is_train:0':True
                 }
                 cost ,_ = self.sess.run(['cost:0','train_op'],feed_dict=feed)
                 avg_cost += cost
@@ -184,7 +184,7 @@ def show_img(y_train,X_train,cnn):
 
 
 if __name__ == '__main__':
-    cnn = CNN(batch_size=128,epoch=2000)
+    cnn = CNN(batch_size=256,epoch=2000,drop_rate=0.2)
     # 分割数据集
     X_s_train, X_s_test, y_s_train, y_s_test = train_test_split(X_train, y_train, test_size=0.2, random_state=123)
     cnn.train(train_set=(X_s_train,y_s_train),validation_set=(X_s_test,y_s_test),data_augmentation=True)
