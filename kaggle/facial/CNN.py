@@ -53,9 +53,11 @@ class CNN:
         # 构建成本函数
         cost = tf.add(tf.losses.mean_squared_error(tf_y,output),tf.constant(0,tf.float32),name='cost')
         # 构造优化器
-
-        optimizer = tf.train.AdamOptimizer(learning_rate=self.lr)
+        global_step = tf.Variable(0,trainable=False)
+        lr = tf.train.exponential_decay(self.lr,global_step=global_step,decay_steps=100,decay_rate=0.9,name='lr')
+        optimizer = tf.train.AdamOptimizer(learning_rate=lr)
         train_op = optimizer.minimize(cost,name='train_op')
+        add_global = global_step.assign_add(1,name='add_global')
         # 预测
         prediction = tf.add(tf.multiply(output, tf.constant(48, dtype=tf.float32)), tf.constant(48, dtype=tf.float32),
                                name='prediction')
@@ -90,8 +92,10 @@ class CNN:
             for a,b in flip_indices:
                 tem_a,tem_b = np.copy(tem_y[:,b]),np.copy(tem_y[:,a])
                 tem_y[:,a],tem_y[:,b] = tem_a,tem_b
-        X = np.row_stack((X,tem_x))
-        y = np.row_stack((y,tem_y))
+        # X = np.row_stack((X,tem_x))
+        # y = np.row_stack((y,tem_y))
+        X[indices,::] = tem_x
+        y[indices,::] = tem_y
         return (X,y)
 
 
@@ -102,26 +106,27 @@ class CNN:
         self.train_costs = []
         self.valid_costs = []
         for epoch in range(self.epoch):
-            if data_augmentation:
-                train_set = self.data_augmentation(train_set[0], train_set[1])
             avg_cost = 0
             count = 0
+            if data_augmentation:
+                train_set = self.data_augmentation(train_set[0], train_set[1])
             batch_generator = self.create_batch_generator(train_set[0],train_set[1])
             for batch_x,batch_y in batch_generator:
                 feed = {
                     'tf_x:0':batch_x,
                     'tf_y:0':batch_y,
-                    'is_train:0':True
+                    'is_train:0':False
                 }
                 cost ,_ = self.sess.run(['cost:0','train_op'],feed_dict=feed)
                 avg_cost += cost
                 count += 1
+            self.sess.run(['add_global'])
             self.train_costs.append(avg_cost/count)
             if validation_set:
                 feed = {'tf_x:0':validation_set[0],'tf_y:0':validation_set[1],'is_train:0':False}
-                valid_cost = self.sess.run(['cost:0'],feed_dict=feed)
+                valid_cost,lr = self.sess.run(['cost:0','lr:0'],feed_dict=feed)
                 self.valid_costs.append(valid_cost)
-                print('epoch-{} train_cost:{} valid_cosst:{}'.format(epoch + 1, self.train_costs[-1], valid_cost))
+                print('epoch-{} train_cost:{} valid_cosst:{} lr:{}'.format(epoch + 1, self.train_costs[-1], valid_cost,lr))
             else:
                 print('epoch-{} train_cost:{}'.format(epoch + 1,self.train_costs[-1]))
 
@@ -179,11 +184,12 @@ def show_img(y_train,X_train,cnn):
 
 
 if __name__ == '__main__':
-    cnn = CNN(batch_size=64,epoch=200)
+    cnn = CNN(batch_size=128,epoch=2000)
     # 分割数据集
     X_s_train, X_s_test, y_s_train, y_s_test = train_test_split(X_train, y_train, test_size=0.2, random_state=123)
     cnn.train(train_set=(X_s_train,y_s_train),validation_set=(X_s_test,y_s_test),data_augmentation=True)
-    # cnn.save()
+    cnn.save()
     # cnn.load(epoch=100)
     # show_img(y_train,X_train,cnn)
+    create_submition(X_test,cnn)
 
