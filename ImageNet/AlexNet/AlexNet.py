@@ -27,7 +27,7 @@ import tensorflow as tf
 import os
 
 class AlexNet:
-    def __init__(self,batch_size=128,epoch=50,lr=0.01,drop_rate=0.5,n_input=224*224*3,input_channel=3,n_label=1000,shuffle=True,random_state=123):
+    def __init__(self,batch_size=128,epoch=50,lr=0.01,drop_rate=0.5,n_input=227*227*3,input_channel=3,n_label=1000,shuffle=True,random_state=123):
         self.batch_size = batch_size      # 批大小
         self.epoch = epoch                # 迭代次数
         self.lr = lr                      # 学习率
@@ -66,19 +66,19 @@ class AlexNet:
 
         ## 卷积层-2
         h2 = tf.layers.conv2d(max_out1,filters=256,kernel_size=(5,5),
-                              strides=(1,1),activation=tf.nn.relu,name='h2')
+                              strides=(1,1),activation=tf.nn.relu,name='h2',padding='same')
         norm2 = tf.nn.local_response_normalization(h2, depth_radius=5, bias=2, alpha=1e-4, beta=0.75, name='norm2')
         max_out2 = tf.layers.max_pooling2d(norm2, pool_size=(3, 3), strides=(2, 2), name='max_out2')
 
         ## 卷积层-3
         h3 = tf.layers.conv2d(max_out2,filters=384,kernel_size=(3,3),
-                              strides=(1,1),activation=tf.nn.relu,name='h3')
+                              strides=(1,1),activation=tf.nn.relu,name='h3',padding='same')
         ## 卷积层-4
         h4 = tf.layers.conv2d(h3,filters=384,kernel_size=(3,3),
-                              strides=(1,1),activation=tf.nn.relu,name='h4')
+                              strides=(1,1),activation=tf.nn.relu,name='h4',padding='same')
         ## 卷积层-5
         h5 = tf.layers.conv2d(h4, filters=256, kernel_size=(3, 3),
-                              strides=(1, 1), activation=tf.nn.relu, name='h5')
+                              strides=(1, 1), activation=tf.nn.relu, name='h5',padding='same')
         max_out5 = tf.layers.max_pooling2d(h5,pool_size=(3,3),strides=(2,2),name='max_ot5')
 
         # 展开
