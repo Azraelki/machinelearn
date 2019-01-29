@@ -25,6 +25,8 @@ ImageNet----基于tensorflow的AlexNet构建
 import numpy as np
 import tensorflow as tf
 import os
+from util import get_dataset
+import pandas as pd
 
 class AlexNet:
     def __init__(self,batch_size=128,epoch=50,lr=0.01,drop_rate=0.5,n_input=227*227*3,input_channel=3,n_label=1000,shuffle=True,random_state=123):
@@ -107,7 +109,7 @@ class AlexNet:
                                   name='accuracy')
 
         # 成本函数
-        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=tf_y,logits=h8),name='cost')
+        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=tf_y_onehot,logits=h8),name='cost')
         # 优化器
         optimizer = tf.train.AdamOptimizer(learning_rate=self.lr)
         train_op = optimizer.minimize(cost,name='train_op')
@@ -116,20 +118,35 @@ class AlexNet:
         if initialize:
             self.sess_.run(self.init_op_)
         self.train_costs_ = []
-        for epoch in range(self.epoch):
-            avg_cost = 0.0
-            batch_generator = self.create_batch_generator(train_x,train_y)
-            for batch_x,batch_y in batch_generator:
+        with self.g_.as_default():
+            df = pd.read_csv('./imageData.csv')
+            dataset = get_dataset(df['imagePath'].values, df['label'].values, batch_size=self.batch_size, epoch=self.epoch)
+            iterator = dataset.make_initializable_iterator()
+            init_op = iterator.make_initializer(dataset)
+        self.sess_.run(init_op)
+        iterator = iterator.get_next()
+        stop_flag = True
+        batch_count = 1;
+
+        try:
+            avg_cost = 0
+            while stop_flag:
+                images, labels = self.sess_.run(iterator)
+                images = np.reshape(images,(-1,self.n_iput))
                 feed_param = {
-                    'tf_x:0':batch_x,
-                    'tf_y:0':batch_y,
+                    'tf_x:0':images,
+                    'tf_y:0':labels,
                     'is_train:0':True
                 }
-                c,_ = self.sess_.run(['cost:0','train_op'],feed_param=feed_param)
+                c,_ = self.sess_.run(['cost:0','train_op'],feed_dict=feed_param)
                 avg_cost += c
-            self.train_costs_.append(avg_cost/self.batch_size)
-            print("epoch-{} train_cost:{}".format(epoch,self.train_costs_[-1]))
-
+                if batch_count*self.batch_size % 3900 == 0:
+                    self.train_costs_.append(avg_cost / (3900 / 32))
+                    print("epoch-{} train_cost:{}".format(batch_count*self.batch_size/3900, self.train_costs_[-1]))
+                # print("epoch-{} train_cost:{}".format(batch_count,self.train_costs_[-1]))
+                batch_count += 1
+        except tf.errors.OutOfRangeError:
+            stop_flag = False
 
 
     def export_graph(self):# 导出tensorboard
@@ -169,7 +186,9 @@ class AlexNet:
 
 
 if __name__ == '__main__':
-    alex_net = AlexNet()
+    alex_net = AlexNet(batch_size=32,n_label=3,lr=0.01,drop_rate=0.1)
+    alex_net.train(None,None)
+    alex_net.save(epoch=50)
     # alex_net.export_graph()
 
 

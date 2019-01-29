@@ -54,6 +54,7 @@ def decompress_file(root_path='',suffix='.tar'):
                 os.mkdir(target_dir)
             tar = tarfile.open(source,mode='r')
             tar.extractall(path=target_dir)
+            tar.close()
             bar.update()
 
 def show_img(title,image):
@@ -104,7 +105,7 @@ def get_dataset(files_list, labels_list, epoch=10,batch_size=64, shuffle=True):
     # 构建数据集
     dataset = tf.data.Dataset.from_tensor_slices((files_list, labels_list))
     if shuffle:
-        dataset = dataset.shuffle(100)
+        dataset = dataset.shuffle(files_list.shape[0])
     dataset = dataset.repeat(epoch)  # 空为无限循环
     dataset = dataset.map(tf_read_image, num_parallel_calls=2)  # num_parallel_calls一般设置为cpu内核数量
     dataset = dataset.batch(batch_size)
@@ -118,8 +119,8 @@ if __name__ == '__main__':
     # get_image_csv('F:\ASSDsoftware\work\program\pycharmworkspace\machinelearndata\\alexnet\\train')
     df = pd.read_csv('./imageData.csv')
 
-    dataset = get_dataset(df['imagePath'].values,df['label'].values,batch_size=1000,epoch=2)
-    max_iterate = 3
+    dataset = get_dataset(df['imagePath'].values,df['label'].values,batch_size=1000,epoch=1)
+    max_iterate = 100
     with tf.Session() as sess:
         iterator = dataset.make_initializable_iterator()
         init_op = iterator.make_initializer(dataset)
